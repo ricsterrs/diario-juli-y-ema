@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuestro Diario</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <!-- MODAL DE CONFIRMACIÓN -->
+    <div id="custom-confirm" class="hidden">
+        <div class="confirm-box card">
+            <i class="ph ph-warning-circle" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 10px;"></i>
+            <h3 id="confirm-message">¿Estás seguro?</h3>
+            <div class="confirm-actions">
+                <button id="confirm-yes" class="btn-primary">Sí, eliminar</button>
+                <button id="confirm-no" class="btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIGURACIÓN DE PERFIL -->
+    <div id="settings-modal" class="hidden">
+        <div class="confirm-box card" style="text-align: left;">
+            <h3 style="margin-bottom: 20px; text-align: center; color: var(--primary-hover);">Tu Perfil ⚙️</h3>
+            
+            <div class="input-group">
+                <label>Foto de Avatar</label>
+                <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 10px;">
+                    <img id="settings-avatar-preview" src="" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color);">
+                    <label for="settings-avatar-upload" class="btn-outline" style="flex: 1; padding: 8px; text-align: center;">Cambiar Foto</label>
+                    <input type="file" id="settings-avatar-upload" accept="image/*" class="hidden-input">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Nombre de Usuario (Para Iniciar Sesión)</label>
+                <input type="text" id="settings-user" placeholder="Escribe tu nuevo usuario">
+            </div>
+            
+            <div class="input-group">
+                <label>Contraseña</label>
+                <input type="text" id="settings-pass" placeholder="Escribe tu nueva contraseña">
+            </div>
+            
+            <div class="confirm-actions" style="margin-top: 25px;">
+                <button id="settings-save" class="btn-primary"><i class="ph ph-floppy-disk"></i> Guardar</button>
+                <button id="settings-cancel" class="btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIGHTBOX (VISOR DE FOTOS) -->
+    <div id="image-lightbox" class="hidden">
+        <button id="close-lightbox-btn"><i class="ph ph-x"></i></button>
+        <img id="lightbox-image" src="" alt="Foto en pantalla completa">
+    </div>
+
+    <!-- PANTALLA DE BIENVENIDA -->
+    <div id="welcome-overlay" class="oculto">
+        <div class="welcome-content">
+            <img id="welcome-avatar" src="" alt="Avatar de bienvenida">
+            <h2 id="welcome-message">¡Hola!</h2>
+        </div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login-container" class="container">
+        <div class="card">
+            <h1>Nuestro Espacio</h1>
+            <p class="subtitle">Solo para nosotros</p>
+            
+            <div class="input-group">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" placeholder="Ingresa tu usuario">
+            </div>
+            
+            <div class="input-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" placeholder="Ingresa la contraseña">
+            </div>
+            
+            <button id="login-btn" class="btn-primary">Entrar al diario</button>
+            <p id="login-error" class="error-message"></p>
+        </div>
+    </div>
+
+    <!-- APP PRINCIPAL -->
+    <div id="app-container" class="container hidden">
+        <header>
+            <!-- BOTÓN DE PERFIL (Abre la configuración) -->
+            <div id="profile-btn" class="user-profile" title="Configurar Perfil">
+                <img id="user-avatar" src="" alt="Avatar del usuario">
+                <h2 id="user-greeting">¡Hola!</h2>
+            </div>
+            <button id="logout-btn" class="btn-secondary">
+                <i class="ph ph-sign-out"></i> Salir
+            </button>
+        </header>
+
+        <nav class="app-nav">
+            <button id="nav-add" class="nav-btn active"><i class="ph ph-pencil-simple"></i> Crear</button>
+            <button id="nav-gallery" class="nav-btn"><i class="ph ph-images"></i> Galería</button>
+            <button id="nav-chat" class="nav-btn"><i class="ph ph-chat-teardrop-text"></i> Notas</button>
+            <button id="nav-game" class="nav-btn"><i class="ph ph-game-controller"></i> Batalla</button>
+            <button id="nav-intimate" class="nav-btn"><i class="ph ph-lock-key"></i> Secreto</button>
+        </nav>
+
+        <!-- VISTA 1: CREAR -->
+        <section id="view-add" class="card add-memory-section">
+            <h3>Nueva Experiencia</h3>
+            <div class="input-group mt-2">
+                <label for="memory-date">Fecha</label>
+                <input type="date" id="memory-date">
+            </div>
+            <div class="input-group">
+                <label for="memory-desc">Descripción</label>
+                <textarea id="memory-desc" rows="3" placeholder="Puedes poner cualquier cosa"></textarea>
+            </div>
+            <div class="checkbox-intimate">
+                <input type="checkbox" id="memory-is-intimate">
+                <label for="memory-is-intimate"><i class="ph ph-lock"></i> Bloquear en el álbum secreto</label>
+            </div>
+            
+            <!-- FOTOS Y CÁMARA -->
+            <div class="photo-actions" id="photo-actions-container">
+                <label for="file-upload" class="btn-outline"><i class="ph ph-upload-simple"></i> Subir foto</label>
+                <input type="file" id="file-upload" accept="image/*" class="hidden-input">
+                <button type="button" id="start-camera-btn" class="btn-outline"><i class="ph ph-camera"></i> Abrir cámara</button>
+            </div>
+            
+            <!-- INTERFAZ DE CÁMARA -->
+            <div id="camera-interface" class="hidden" style="margin-bottom: 15px;">
+                <video id="camera-stream" autoplay playsinline style="width: 100%; border-radius: 16px; border: 1px solid #F0F0F0; background: #000;"></video>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button type="button" id="capture-btn" class="btn-primary"><i class="ph ph-aperture"></i> Capturar</button>
+                    <button type="button" id="close-camera-btn" class="btn-secondary" style="flex: 1;">Cancelar</button>
+                </div>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+            </div>
+            
+            <!-- VISTA PREVIA -->
+            <div id="photo-preview-container" class="hidden">
+                <img id="photo-preview" src="" alt="Vista previa">
+                <button type="button" id="remove-photo-btn" class="btn-secondary mt-2" style="width: 100%;"><i class="ph ph-arrows-clockwise"></i> Cambiar foto</button>
+            </div>
+            
+            <button id="save-memory-btn" class="btn-primary mt-2">Guardar recuerdo</button>
+        </section>
+
+        <!-- VISTA 2: GALERÍA -->
+        <section id="view-gallery" class="hidden">
+            <div id="memories-feed"></div>
+        </section>
+        
+        <!-- VISTA 3: NOTAS -->
+        <section id="view-chat" class="hidden">
+            <div class="card chat-card">
+                <div id="chat-box" class="chat-box"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
+                    <button id="chat-send-btn" class="btn-primary btn-send"><i class="ph ph-paper-plane-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA 4: BATALLA -->
+        <section id="view-game" class="hidden">
+            <div class="card" style="text-align: center;">
+                <h3 style="color: var(--primary-hover); font-size: 1.6rem;">¿Quién amó más hoy?</h3>
+                <p class="subtitle" style="margin-bottom: 20px;">Toca tu botón rápido para llenar la barra.</p>
+                <div class="game-arena">
+                    <div class="player-zone">
+                        <div class="player-header">
+                            <img id="game-avatar-ema" src="" class="player-avatar">
+                            <h4 id="game-name-ema">Ema</h4>
+                        </div>
+                        <div class="progress-bg"><div id="bar-ema" class="progress-fill ema-fill"></div></div>
+                        <p class="tap-count"><span id="count-ema">0</span></p>
+                        <button id="btn-tap-ema" class="tap-btn" style="background-color: #b6e3f4; color: #004d66;">Dar Amor</button>
+                    </div>
+                    <div class="player-zone">
+                        <div class="player-header">
+                            <img id="game-avatar-juli" src="" class="player-avatar">
+                            <h4 id="game-name-juli">Juli</h4>
+                        </div>
+                        <div class="progress-bg"><div id="bar-juli" class="progress-fill juli-fill"></div></div>
+                        <p class="tap-count"><span id="count-juli">0</span></p>
+                        <button id="btn-tap-juli" class="tap-btn" style="background-color: #ffdfbf; color: #804000;">Dar Amor</button>
+                    </div>
+                </div>
+                <div id="game-winner" style="margin-top: 25px; font-weight: 600; font-size: 1.2rem; color: var(--primary-color);"></div>
+            </div>
+        </section>
+
+        <!-- VISTA 5: SECRETO -->
+        <section id="view-intimate" class="hidden">
+            <div id="intimate-warning" class="card" style="text-align: center; padding: 50px 20px;">
+                <i class="ph ph-mask-happy" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 15px;"></i>
+                <h3 style="color: var(--primary-color); font-size: 1.8rem; margin-bottom: 15px;">Solo para nosotros</h3>
+                <p style="margin-bottom: 25px; font-size: 1.05rem;">Revisar únicamente cuando estemos a solas y con tranquilidad.</p>
+                <button id="intimate-next-btn" class="btn-primary">Sí, estamos solos. Entrar.</button>
+            </div>
+            <div id="intimate-feed" class="hidden"></div>
+        </section>
+    </div>
+
+    <!-- AUDIO SECRETO -->
+    <audio id="sexy-audio" loop>
+        <source src="cancion-secreta.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+    
+    <!-- LÓGICA -->
+    <script src="app.js"></script>
+</body>
+</html>
