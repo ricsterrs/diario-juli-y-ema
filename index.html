@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nuestro Diario</title>
+    <link rel="icon" type="image/png" href="icono.png">
+    <link rel="apple-touch-icon" href="icono.png">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -18,28 +20,39 @@
             <i class="ph ph-warning-circle" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 10px;"></i>
             <h3 id="confirm-message">¿Estás seguro?</h3>
             <div class="confirm-actions">
-                <button id="confirm-yes" class="btn-primary">Sí, eliminar</button>
+                <button id="confirm-yes" class="btn-primary">Sí, seguro</button>
                 <button id="confirm-no" class="btn-secondary">Cancelar</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL DE CONFIGURACIÓN DE PERFIL -->
+    <!-- MODAL DE PERFIL Y MONEDAS -->
     <div id="settings-modal" class="hidden">
         <div class="confirm-box card" style="text-align: left;">
             <h3 style="margin-bottom: 20px; text-align: center; color: var(--primary-hover);">Tu Perfil</h3>
             
             <div class="input-group">
                 <label>Foto de Avatar</label>
-                <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 10px;">
+                <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
                     <img id="settings-avatar-preview" src="" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color);">
                     <label for="settings-avatar-upload" class="btn-outline" style="flex: 1; padding: 8px; text-align: center;">Cambiar Foto</label>
                     <input type="file" id="settings-avatar-upload" accept="image/*" class="hidden-input">
                 </div>
             </div>
 
+            <!-- INVENTARIO (BOTÓN CLICABLE PARA VER RACHA) -->
+            <div id="view-streak-btn" onclick="abrirRacha()" style="display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #fffdf8 0%, #fff 100%); padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(255, 177, 66, 0.4); margin-bottom: 20px; box-shadow: 0 4px 10px rgba(255, 177, 66, 0.08); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="color: #e67e22; font-weight: 600; font-size: 0.95rem;">Tus Monedas</span>
+                    <span style="font-size: 0.75rem; color: var(--primary-hover); margin-top: 2px; font-weight: 500;">Tocar para ver la racha</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 1.6rem; font-weight: bold; color: #f39c12;">
+                    <span id="settings-coins">0</span> <i class="ph ph-coins"></i>
+                </div>
+            </div>
+
             <div class="input-group">
-                <label>Nombre de Usuario (Para Iniciar Sesión)</label>
+                <label>Nombre de Usuario</label>
                 <input type="text" id="settings-user" placeholder="Escribe tu nuevo usuario">
             </div>
             
@@ -61,7 +74,21 @@
         <img id="lightbox-image" src="" alt="Foto en pantalla completa">
     </div>
 
-    <!-- PANTALLA DE BIENVENIDA -->
+    <!-- MODAL DE RECOMPENSA DIARIA -->
+    <div id="daily-reward-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 10005; display: flex; justify-content: center; align-items: center;">
+        <div class="card" style="width: 90%; max-width: 350px; text-align: center; padding: 30px 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+            <h3 style="color: var(--primary-hover); margin-bottom: 5px;"><i class="ph ph-calendar-star" style="font-size: 2.5rem;"></i><br>¡Recompensa Diaria!</h3>
+            <p style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 20px;">Entra todos los días para no perder tu racha de amor.</p>
+            
+            <div id="reward-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                <!-- Generado automáticamente por JavaScript -->
+            </div>
+            
+            <button id="claim-reward-btn" class="btn-primary" style="font-size: 1.1rem;"><i class="ph ph-hand-coins"></i> ¡Reclamar Monedas!</button>
+        </div>
+    </div>
+
+    <!-- PANTALLA BIENVENIDA -->
     <div id="welcome-overlay" class="oculto">
         <div class="welcome-content">
             <img id="welcome-avatar" src="" alt="Avatar de bienvenida">
@@ -71,7 +98,7 @@
 
     <!-- LOGIN -->
     <div id="login-container" class="container">
-        <div class="card">
+        <div class="card" style="margin: 0 auto;">
             <h1>Nuestro Espacio</h1>
             <p class="subtitle">Solo para nosotros</p>
             
@@ -93,22 +120,21 @@
     <!-- APP PRINCIPAL -->
     <div id="app-container" class="container hidden">
         <header>
-            <!-- BOTÓN DE PERFIL (Abre la configuración) -->
             <div id="profile-btn" class="user-profile" title="Configurar Perfil">
                 <img id="user-avatar" src="" alt="Avatar del usuario">
                 <h2 id="user-greeting">¡Hola!</h2>
             </div>
-            <button id="logout-btn" class="btn-secondary">
-                <i class="ph ph-sign-out"></i> Salir
-            </button>
+            <button id="logout-btn" class="btn-secondary"><i class="ph ph-sign-out"></i> Salir</button>
         </header>
 
+        <!-- BARRA NAVEGACIÓN -->
         <nav class="app-nav">
             <button id="nav-add" class="nav-btn active"><i class="ph ph-pencil-simple"></i> Crear</button>
-            <button id="nav-gallery" class="nav-btn"><i class="ph ph-images"></i> Galería</button>
-            <button id="nav-chat" class="nav-btn"><i class="ph ph-chat-teardrop-text"></i> Notas</button>
+            <button id="nav-gallery" class="nav-btn"><i class="ph ph-images"></i> Galería <span id="dot-gallery" class="notif-dot hidden"></span></button>
+            <button id="nav-surprises" class="nav-btn"><i class="ph ph-gift"></i> Sorpresas <span id="dot-surprises" class="notif-dot hidden"></span></button>
+            <button id="nav-chat" class="nav-btn"><i class="ph ph-chat-teardrop-text"></i> Notas <span id="dot-chat" class="notif-dot hidden"></span></button>
             <button id="nav-game" class="nav-btn"><i class="ph ph-game-controller"></i> Batalla</button>
-            <button id="nav-intimate" class="nav-btn"><i class="ph ph-lock-key"></i> Secreto</button>
+            <button id="nav-intimate" class="nav-btn"><i class="ph ph-lock-key"></i> Secreto <span id="dot-secret" class="notif-dot hidden"></span></button>
         </nav>
 
         <!-- VISTA 1: CREAR -->
@@ -120,36 +146,31 @@
             </div>
             <div class="input-group">
                 <label for="memory-desc">Descripción</label>
-                <textarea id="memory-desc" rows="3" placeholder="Puedes poner cualquier cosa"></textarea>
+                <textarea id="memory-desc" rows="3" placeholder="¿Qué hicimos hoy?"></textarea>
             </div>
             <div class="checkbox-intimate">
                 <input type="checkbox" id="memory-is-intimate">
                 <label for="memory-is-intimate"><i class="ph ph-lock"></i> Bloquear en el álbum secreto</label>
             </div>
             
-            <!-- FOTOS Y CÁMARA -->
             <div class="photo-actions" id="photo-actions-container">
                 <label for="file-upload" class="btn-outline"><i class="ph ph-upload-simple"></i> Subir foto</label>
                 <input type="file" id="file-upload" accept="image/*" class="hidden-input">
                 <button type="button" id="start-camera-btn" class="btn-outline"><i class="ph ph-camera"></i> Abrir cámara</button>
             </div>
             
-            <!-- INTERFAZ DE CÁMARA (ACTUALIZADA) -->
             <div id="camera-interface" class="hidden" style="margin-bottom: 15px;">
                 <video id="camera-stream" autoplay playsinline style="width: 100%; border-radius: 16px; border: 1px solid #F0F0F0; background: #000;"></video>
                 <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
-                    <!-- NUEVO BOTÓN DE VOLTEAR CÁMARA -->
                     <button type="button" id="switch-camera-btn" class="btn-secondary" style="padding: 10px; display: flex; justify-content: center; align-items: center; border-radius: 12px;">
                         <i class="ph ph-camera-rotate" style="font-size: 1.5rem;"></i>
                     </button>
-                    
                     <button type="button" id="capture-btn" class="btn-primary" style="flex: 1;"><i class="ph ph-aperture"></i> Capturar</button>
                     <button type="button" id="close-camera-btn" class="btn-secondary">Cancelar</button>
                 </div>
                 <canvas id="camera-canvas" class="hidden"></canvas>
             </div>
             
-            <!-- VISTA PREVIA -->
             <div id="photo-preview-container" class="hidden">
                 <img id="photo-preview" src="" alt="Vista previa">
                 <button type="button" id="remove-photo-btn" class="btn-secondary mt-2" style="width: 100%;"><i class="ph ph-arrows-clockwise"></i> Cambiar foto</button>
@@ -162,8 +183,50 @@
         <section id="view-gallery" class="hidden">
             <div id="memories-feed"></div>
         </section>
+
+        <!-- VISTA 3: SORPRESAS -->
+        <section id="view-surprises" class="hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="color: var(--primary-hover); margin: 0;"><i class="ph ph-storefront"></i> Tienda</h3>
+                <div style="background: #fff3f8; padding: 5px 10px; border-radius: 20px; font-weight: bold; color: #f39c12;">
+                    <span id="surprises-coins-display">0</span> 🪙
+                </div>
+            </div>
+
+            <h4 style="color: var(--text-dark); margin-bottom: 10px;">Tus sorpresas</h4>
+            <div id="surprises-feed-buy"></div>
+
+            <!-- Botón y formulario para Crear Sorpresa -->
+            <button id="toggle-create-surprise-btn" class="btn-outline" style="width: 100%; margin: 15px 0;"><i class="ph ph-plus-circle"></i> Crear sorpresa para tu pareja</button>
+
+            <div id="create-surprise-form" class="card hidden" style="margin-bottom: 20px;">
+                <h4 style="font-size: 0.95rem; margin-bottom:10px;">Nueva sorpresa</h4>
+                <div class="input-group">
+                    <input type="text" id="surprise-desc" placeholder="Ej: Vale por un masaje, Cena, etc.">
+                </div>
+                <div class="input-group mt-2">
+                    <input type="number" id="surprise-cost" placeholder="Precio en 🪙 (Ej: 15)">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button id="create-surprise-btn" class="btn-primary" style="flex: 1;">Guardar</button>
+                    <button id="cancel-surprise-btn" class="btn-secondary">Cancelar</button>
+                </div>
+            </div>
+
+            <!-- Botón y lista para Reclamados (Deudas) -->
+            <button id="toggle-redeemed-btn" class="btn-outline" style="width: 100%; margin-bottom: 15px;"><i class="ph ph-check-square-offset"></i> Ver reclamados (Deudas)</button>
+            <div id="redeemed-container" class="hidden">
+                <div id="surprises-feed-redeemed" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; margin-bottom: 20px;"></div>
+            </div>
+
+            <!-- Botón y lista para Creadas por ti -->
+            <button id="toggle-created-btn" class="btn-outline" style="width: 100%; margin-bottom: 15px;"><i class="ph ph-tag"></i> Ver creadas por ti</button>
+            <div id="created-container" class="hidden">
+                <div id="surprises-feed-created"></div>
+            </div>
+        </section>
         
-        <!-- VISTA 3: NOTAS -->
+        <!-- VISTA 4: NOTAS -->
         <section id="view-chat" class="hidden">
             <div class="card chat-card">
                 <div id="chat-box" class="chat-box"></div>
@@ -174,7 +237,7 @@
             </div>
         </section>
 
-        <!-- VISTA 4: BATALLA -->
+        <!-- VISTA 5: BATALLA -->
         <section id="view-game" class="hidden">
             <div class="card" style="text-align: center;">
                 <h3 style="color: var(--primary-hover); font-size: 1.6rem;">¿Quién amó más hoy?</h3>
@@ -203,7 +266,7 @@
             </div>
         </section>
 
-        <!-- VISTA 5: SECRETO -->
+        <!-- VISTA 6: SECRETO -->
         <section id="view-intimate" class="hidden">
             <div id="intimate-warning" class="card" style="text-align: center; padding: 50px 20px;">
                 <i class="ph ph-mask-happy" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 15px;"></i>
@@ -215,16 +278,9 @@
         </section>
     </div>
 
-    <!-- AUDIO SECRETO -->
-    <audio id="sexy-audio" loop>
-        <source src="cancion-secreta.mp3" type="audio/mpeg">
-    </audio>
-
-    <!-- FIREBASE SDK -->
+    <audio id="sexy-audio" loop><source src="cancion-secreta.mp3" type="audio/mpeg"></audio>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
-    
-    <!-- LÓGICA -->
-    <script src="app.js"></script>
+    <script src="app.js?v=11"></script>
 </body>
 </html>
