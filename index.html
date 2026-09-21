@@ -134,12 +134,17 @@
                 <button type="button" id="start-camera-btn" class="btn-outline"><i class="ph ph-camera"></i> Abrir cámara</button>
             </div>
             
-            <!-- INTERFAZ DE CÁMARA -->
+            <!-- INTERFAZ DE CÁMARA (ACTUALIZADA) -->
             <div id="camera-interface" class="hidden" style="margin-bottom: 15px;">
                 <video id="camera-stream" autoplay playsinline style="width: 100%; border-radius: 16px; border: 1px solid #F0F0F0; background: #000;"></video>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button type="button" id="capture-btn" class="btn-primary"><i class="ph ph-aperture"></i> Capturar</button>
-                    <button type="button" id="close-camera-btn" class="btn-secondary" style="flex: 1;">Cancelar</button>
+                <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
+                    <!-- NUEVO BOTÓN DE VOLTEAR CÁMARA -->
+                    <button type="button" id="switch-camera-btn" class="btn-secondary" style="padding: 10px; display: flex; justify-content: center; align-items: center; border-radius: 12px;">
+                        <i class="ph ph-camera-rotate" style="font-size: 1.5rem;"></i>
+                    </button>
+                    
+                    <button type="button" id="capture-btn" class="btn-primary" style="flex: 1;"><i class="ph ph-aperture"></i> Capturar</button>
+                    <button type="button" id="close-camera-btn" class="btn-secondary">Cancelar</button>
                 </div>
                 <canvas id="camera-canvas" class="hidden"></canvas>
             </div>

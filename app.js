@@ -264,9 +264,34 @@ function inicializarListenersFirebase() {
 
         snapshot.forEach(doc => {
             const msg = doc.data();
+            const id = doc.id; // Necesitamos el ID para saber cuál borrar
             const msgDiv = document.createElement('div');
             msgDiv.className = msg.authorId === usuarioActualId ? 'chat-msg msg-sent' : 'chat-msg msg-received';
             msgDiv.innerHTML = `${msg.text || ''} <span class="msg-time">${msg.time || ''}</span>`;
+            
+            // --- LÓGICA DE MANTENER PRESIONADO (LONG PRESS) ---
+            let pressTimer;
+            const iniciarPresion = () => {
+                // Si mantiene 700ms, se activa borrarMensaje
+                pressTimer = setTimeout(() => {
+                    borrarMensaje(id, msg.authorId);
+                }, 700); 
+            };
+            const cancelarPresion = () => clearTimeout(pressTimer);
+
+            // Eventos para celular (pantalla táctil)
+            msgDiv.addEventListener('touchstart', iniciarPresion, {passive: true});
+            msgDiv.addEventListener('touchend', cancelarPresion);
+            msgDiv.addEventListener('touchmove', cancelarPresion);
+            
+            // Eventos para PC (mouse)
+            msgDiv.addEventListener('mousedown', iniciarPresion);
+            msgDiv.addEventListener('mouseup', cancelarPresion);
+            msgDiv.addEventListener('mouseleave', cancelarPresion);
+            
+            // Evitar que salga el menú "copiar/pegar" del navegador al sostener
+            msgDiv.addEventListener('contextmenu', e => e.preventDefault());
+
             chatBox.appendChild(msgDiv);
         });
         chatBox.scrollTop = chatBox.scrollHeight;
@@ -351,7 +376,7 @@ function cargarDatosGalerias() {
     if (countIntimos === 0) intFeed.innerHTML = '<p style="text-align:center; color:var(--text-light); font-style:italic; margin-top:30px;">Aún no hay nada en el álbum secreto...</p>';
 }
 
-// --- FOTOS Y CÁMARA (ALTA CALIDAD) ---
+// --- FOTOS Y CÁMARA (ALTA CALIDAD Y GIRO DE CÁMARA) ---
 const fileUpload = document.getElementById('file-upload');
 const photoPreviewContainer = document.getElementById('photo-preview-container');
 const photoPreview = document.getElementById('photo-preview');
@@ -362,15 +387,18 @@ const cameraInterface = document.getElementById('camera-interface');
 const cameraStream = document.getElementById('camera-stream');
 const captureBtn = document.getElementById('capture-btn');
 const closeCameraBtn = document.getElementById('close-camera-btn');
+const switchCameraBtn = document.getElementById('switch-camera-btn'); // Nuevo botón conectado
 const cameraCanvas = document.getElementById('camera-canvas');
+
 let videoStream = null;
 let currentImageBase64 = '';
+let currentFacingMode = 'environment'; // 'environment' = trasera, 'user' = frontal
 
 function comprimirYMostrar(imgSource) {
     const img = new Image();
     img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1080; // Alta Calidad
+        const MAX_WIDTH = 1080; 
         let scale = 1;
         if(img.width > MAX_WIDTH) { scale = MAX_WIDTH / img.width; }
         canvas.width = img.width * scale; 
@@ -393,21 +421,48 @@ fileUpload.addEventListener('change', (e) => {
     }
 });
 
-startCameraBtn.addEventListener('click', async () => {
+// Función maestra para prender la cámara según el modo que le pidamos
+async function encenderCamara(modo) {
+    if (videoStream) {
+        // Apagamos la cámara actual antes de cambiar a la otra
+        videoStream.getTracks().forEach(track => track.stop());
+    }
     try {
-        videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: modo } });
         cameraStream.srcObject = videoStream;
-        photoActionsContainer.classList.add('hidden');
-        cameraInterface.classList.remove('hidden');
     } catch (err) {
         showToast('No se pudo acceder a la cámara.', 'ph-warning');
     }
+}
+
+// Botón para abrir la cámara por primera vez
+startCameraBtn.addEventListener('click', () => {
+    photoActionsContainer.classList.add('hidden');
+    cameraInterface.classList.remove('hidden');
+    currentFacingMode = 'environment'; // Siempre arranca con la trasera por defecto
+    encenderCamara(currentFacingMode);
 });
+
+// Botón para cambiar entre frontal y trasera
+if (switchCameraBtn) {
+    switchCameraBtn.addEventListener('click', () => {
+        // Si está en trasera pasa a frontal, y viceversa
+        currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+        encenderCamara(currentFacingMode);
+    });
+}
 
 captureBtn.addEventListener('click', () => {
     cameraCanvas.width = cameraStream.videoWidth;
     cameraCanvas.height = cameraStream.videoHeight;
-    cameraCanvas.getContext('2d').drawImage(cameraStream, 0, 0, cameraCanvas.width, cameraCanvas.height);
+    // Si es cámara frontal, se voltea la imagen como un espejo para que no salga al revés
+    const ctx = cameraCanvas.getContext('2d');
+    if (currentFacingMode === 'user') {
+        ctx.translate(cameraCanvas.width, 0);
+        ctx.scale(-1, 1);
+    }
+    ctx.drawImage(cameraStream, 0, 0, cameraCanvas.width, cameraCanvas.height);
+    
     const rawData = cameraCanvas.toDataURL('image/jpeg', 1.0);
     apagarCamara();
     comprimirYMostrar(rawData);
@@ -421,53 +476,6 @@ closeCameraBtn.addEventListener('click', () => {
 function apagarCamara() {
     if (videoStream) videoStream.getTracks().forEach(track => track.stop());
     cameraInterface.classList.add('hidden');
-}
-
-document.getElementById('remove-photo-btn').addEventListener('click', () => {
-    currentImageBase64 = ''; photoPreview.src = ''; fileUpload.value = '';
-    photoPreviewContainer.classList.add('hidden');
-    photoActionsContainer.classList.remove('hidden');
-});
-
-const saveMemoryBtn = document.getElementById('save-memory-btn');
-saveMemoryBtn.addEventListener('click', () => {
-    const date = document.getElementById('memory-date').value;
-    const desc = document.getElementById('memory-desc').value.trim();
-    const isIntimate = document.getElementById('memory-is-intimate').checked;
-
-    if (!date || !desc || !currentImageBase64) { showToast('Completa la fecha, descripción y foto.', 'ph-warning'); return; }
-
-    saveMemoryBtn.disabled = true;
-    saveMemoryBtn.innerHTML = 'Subiendo a la nube... ';
-
-    db.collection('recuerdos').add({
-        date: date, desc: desc, image: currentImageBase64,
-        authorName: usuarioActualInfo.user || usuarioActualId, 
-        authorAvatar: usuarioActualInfo.avatar || '',
-        authorId: usuarioActualId, 
-        isIntimate: isIntimate, 
-        timestamp: Date.now()
-    }).then(() => {
-        document.getElementById('memory-desc').value = '';
-        document.getElementById('memory-is-intimate').checked = false;
-        document.getElementById('remove-photo-btn').click(); 
-        
-        saveMemoryBtn.disabled = false;
-        saveMemoryBtn.innerHTML = 'Guardar recuerdo';
-        showToast('Recuerdo subido a la nube ', 'ph-check-circle');
-        isIntimate ? navIntimate.click() : navGallery.click();
-    }).catch((error) => {
-        saveMemoryBtn.disabled = false;
-        saveMemoryBtn.innerHTML = 'Guardar recuerdo';
-        showToast('Error al subir. ¿Están bien las Reglas de Firebase?', 'ph-warning');
-        console.error(error);
-    });
-});
-
-function borrarRecuerdo(id) {
-    showConfirm("¿Eliminar esta foto permanentemente para ambos?", () => {
-        db.collection('recuerdos').doc(id).delete().then(() => showToast("Foto eliminada", "ph-trash"));
-    });
 }
 
 // --- CHAT ---
@@ -550,4 +558,22 @@ function toggleLike(id) {
             likes: firebase.firestore.FieldValue.arrayUnion(usuarioActualId)
         });
     }
+}
+
+// --- FUNCIÓN PARA BORRAR MENSAJE DEJANDO APRETADO ---
+function borrarMensaje(idMensaje, authorId) {
+    // Evitar que uno borre los mensajes del otro por accidente
+    if (authorId !== usuarioActualId) {
+        showToast("Solo puedes borrar tus propios mensajes", "ph-warning-circle");
+        return;
+    }
+
+    // Usar la ventana de confirmación que ya existe en tu diseño
+    showConfirm("¿Deseas eliminar este mensaje para ambos?", () => {
+        db.collection('mensajes').doc(idMensaje).delete().then(() => {
+            showToast("Mensaje borrado", "ph-trash");
+        }).catch(() => {
+            showToast("Error al borrar el mensaje", "ph-warning");
+        });
+    });
 }
