@@ -40,6 +40,8 @@ body {
     display: flex;
     justify-content: center;
     padding: 20px;
+    /* Evita el doble toque en toda la pantalla */
+    touch-action: manipulation;
 }
 
 h1, h2, h3 {
@@ -725,6 +727,13 @@ body.sexy-theme .progress-bg {
     cursor: pointer;
     box-shadow: 0 6px 12px rgba(0,0,0,0.1) !important;
     transition: all 0.2s !important;
+    
+    /* Esta es la línea mágica que desactiva el zoom al tocar rápido */
+    touch-action: manipulation; 
+    
+    /* También ayuda a evitar selecciones de texto accidentales al tocar rápido */
+    user-select: none;
+    -webkit-user-select: none; 
 }
 
 .tap-btn:active {
