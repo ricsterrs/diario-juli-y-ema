@@ -30,7 +30,7 @@
     <!-- MODAL DE PERFIL Y MONEDAS -->
     <div id="settings-modal" class="hidden">
         <div class="confirm-box card" style="text-align: left;">
-            <h3 style="margin-bottom: 20px; text-align: center; color: var(--primary-hover);">Tu Perfil</h3>
+            <h3 style="margin-bottom: 20px; text-align: center; color: var(--primary-hover);">Tu Perfil ⚙️</h3>
             
             <div class="input-group">
                 <label>Foto de Avatar</label>
@@ -45,12 +45,17 @@
             <div id="view-streak-btn" onclick="abrirRacha()" style="display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #fffdf8 0%, #fff 100%); padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(255, 177, 66, 0.4); margin-bottom: 20px; box-shadow: 0 4px 10px rgba(255, 177, 66, 0.08); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                 <div style="display: flex; flex-direction: column;">
                     <span style="color: #e67e22; font-weight: 600; font-size: 0.95rem;">Tus Monedas</span>
-                    <span style="font-size: 0.75rem; color: var(--primary-hover); margin-top: 2px; font-weight: 500;">Tocar para ver la racha</span>
+                    <span style="font-size: 0.75rem; color: var(--primary-hover); margin-top: 2px; font-weight: 500;">Toca para ver tu racha 🔥</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px; font-size: 1.6rem; font-weight: bold; color: #f39c12;">
                     <span id="settings-coins">0</span> <i class="ph ph-coins"></i>
                 </div>
             </div>
+
+            <!-- BOTÓN PARA ACTIVAR NOTIFICACIONES EN CELULAR -->
+            <button id="enable-notif-btn" class="btn-outline" style="width: 100%; margin-bottom: 20px; border-color: #3498db; color: #3498db; background: rgba(52, 152, 219, 0.05);">
+                <i class="ph ph-bell-ringing"></i> Activar Notificaciones
+            </button>
 
             <div class="input-group">
                 <label>Nombre de Usuario</label>
@@ -68,12 +73,7 @@
             </div>
         </div>
     </div>
-
-    <!-- BOTÓN PARA ACTIVAR NOTIFICACIONES EN CELULAR -->
-            <button id="enable-notif-btn" class="btn-outline" style="width: 100%; margin-bottom: 20px; border-color: #3498db; color: #3498db; background: rgba(52, 152, 219, 0.05);">
-                <i class="ph ph-bell-ringing"></i> Activar Notificaciones
-            </button>
-
+    
     <!-- LIGHTBOX (VISOR DE FOTOS) -->
     <div id="image-lightbox" class="hidden">
         <button id="close-lightbox-btn"><i class="ph ph-x"></i></button>
