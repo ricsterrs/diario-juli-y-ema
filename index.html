@@ -6,6 +6,7 @@
     <title>Nuestro Diario</title>
     <link rel="icon" type="image/png" href="icono.png">
     <link rel="apple-touch-icon" href="icono.png">
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -67,6 +68,11 @@
             </div>
         </div>
     </div>
+
+    <!-- BOTÓN PARA ACTIVAR NOTIFICACIONES EN CELULAR -->
+            <button id="enable-notif-btn" class="btn-outline" style="width: 100%; margin-bottom: 20px; border-color: #3498db; color: #3498db; background: rgba(52, 152, 219, 0.05);">
+                <i class="ph ph-bell-ringing"></i> Activar Notificaciones
+            </button>
 
     <!-- LIGHTBOX (VISOR DE FOTOS) -->
     <div id="image-lightbox" class="hidden">
@@ -315,6 +321,6 @@
     <audio id="sexy-audio" loop><source src="cancion-secreta.mp3" type="audio/mpeg"></audio>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
-    <script src="app.js?v=17"></script>
+    <script src="app.js?v=21"></script>
 </body>
 </html>

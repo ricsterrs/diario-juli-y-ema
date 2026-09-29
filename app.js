@@ -302,11 +302,24 @@ function activarPestana(botonActivo, vistaActiva) {
 }
 
 // --- SISTEMA DE NOTIFICACIONES NATIVAS ---
-function solicitarPermisoNotificaciones() {
-    if (!("Notification" in window)) return;
-    if (Notification.permission !== "denied" && Notification.permission !== "granted") {
-        Notification.requestPermission();
-    }
+const enableNotifBtn = document.getElementById('enable-notif-btn');
+
+// Botón manual en el perfil (Soluciona el bloqueo de los celulares)
+if (enableNotifBtn) {
+    enableNotifBtn.addEventListener('click', () => {
+        if (!("Notification" in window)) {
+            showToast('Tu celular no soporta notificaciones web.', 'ph-warning');
+            return;
+        }
+        
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+                showToast('¡Notificaciones activadas! 🔔', 'ph-check-circle');
+            } else {
+                showToast('Permiso denegado. Revisa los ajustes de tu navegador.', 'ph-warning');
+            }
+        });
+    });
 }
 
 function enviarNotificacionOS(titulo, mensaje) {
@@ -330,9 +343,6 @@ function enviarNotificacionOS(titulo, mensaje) {
 // --- FIREBASE LISTENERS (CHAT, GALERIA, SORPRESAS) ---
 function inicializarListenersFirebase() {
     
-    // Pedimos permiso para enviar notificaciones al entrar
-    solicitarPermisoNotificaciones();
-
     // 1. GALERIA
     db.collection('recuerdos').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
         
