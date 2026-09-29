@@ -133,8 +133,13 @@
             <button id="nav-gallery" class="nav-btn"><i class="ph ph-images"></i> Galería <span id="dot-gallery" class="notif-dot hidden"></span></button>
             <button id="nav-surprises" class="nav-btn"><i class="ph ph-gift"></i> Sorpresas <span id="dot-surprises" class="notif-dot hidden"></span></button>
             <button id="nav-chat" class="nav-btn"><i class="ph ph-chat-teardrop-text"></i> Notas <span id="dot-chat" class="notif-dot hidden"></span></button>
+            
+            <!-- NUEVO BOTÓN DE DIBUJO -->
+            <button id="nav-draw" class="nav-btn"><i class="ph ph-palette"></i> Dibujar <span id="dot-draw" class="notif-dot hidden"></span></button>
+            
             <button id="nav-game" class="nav-btn"><i class="ph ph-game-controller"></i> Batalla</button>
             <button id="nav-intimate" class="nav-btn"><i class="ph ph-lock-key"></i> Secreto <span id="dot-secret" class="notif-dot hidden"></span></button>
+    
         </nav>
 
         <!-- VISTA 1: CREAR -->
@@ -226,6 +231,33 @@
             </div>
         </section>
         
+        <!-- VISTA 7: DIBUJAR -->
+        <section id="view-draw" class="hidden">
+            <div class="card" style="padding: 20px;">
+                <h3 style="color: var(--primary-hover); margin-bottom: 15px;"><i class="ph ph-palette"></i> Lienzo Mágico</h3>
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 15px; align-items: center; justify-content: center; background: #fff5f7; padding: 10px; border-radius: 16px;">
+                    <input type="color" id="draw-color" value="#ff4757" style="width: 35px; height: 35px; border: none; border-radius: 8px; cursor: pointer;">
+                    <input type="range" id="draw-size" min="2" max="15" value="4" style="flex: 1; accent-color: var(--primary-color);">
+                    <button id="clear-canvas-btn" class="btn-secondary" style="padding: 8px; border-radius: 50%;"><i class="ph ph-eraser" style="font-size: 1.2rem;"></i></button>
+                </div>
+                
+                <!-- Lienzo con bloqueo táctil para no hacer scroll mientras dibujas -->
+                <div style="border: 2px dashed rgba(248, 187, 208, 0.6); border-radius: 16px; overflow: hidden; touch-action: none; background: #ffffff; margin-bottom: 15px;">
+                    <canvas id="drawing-canvas" style="width: 100%; height: 300px; display: block; touch-action: none;"></canvas>
+                </div>
+                
+                <div class="input-group">
+                    <input type="text" id="draw-title" placeholder="¿Qué dibujaste? Ponle un título..." autocomplete="off">
+                </div>
+                
+                <button id="save-draw-btn" class="btn-primary mt-2" style="font-size: 1.05rem;"><i class="ph ph-paper-plane-right"></i> Enviar Obra de Arte</button>
+            </div>
+            
+            <h4 style="color: var(--text-dark); margin-top: 25px; margin-bottom: 15px; text-align: center;">🎨 Galería de Dibujos</h4>
+            <div id="drawings-feed"></div>
+        </section>
+
         <!-- VISTA 4: NOTAS -->
         <section id="view-chat" class="hidden">
             <div class="card chat-card">
@@ -237,6 +269,8 @@
             </div>
         </section>
 
+
+        
         <!-- VISTA 5: BATALLA -->
         <section id="view-game" class="hidden">
             <div class="card" style="text-align: center;">
@@ -281,6 +315,6 @@
     <audio id="sexy-audio" loop><source src="cancion-secreta.mp3" type="audio/mpeg"></audio>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
-    <script src="app.js?v=12"></script>
+    <script src="app.js?v=17"></script>
 </body>
 </html>

@@ -23,8 +23,9 @@ let snapshotRecuerdosLocal = null;
 db.collection('configuracion').doc('perfiles').onSnapshot(doc => {
     if(doc.exists) {
         const data = doc.data();
-        if(data.ema) configEma = data.ema;
-        if(data.juli) configJuli = data.juli;
+        // Fusión segura: Combina lo que está en la nube con lo predeterminado para no perder datos jamás
+        if(data.ema) configEma = { ...configEma, ...data.ema };
+        if(data.juli) configJuli = { ...configJuli, ...data.juli };
 
         if(usuarioActualId === 'ema') {
             usuarioActualInfo = configEma;
@@ -51,7 +52,7 @@ db.collection('configuracion').doc('perfiles').onSnapshot(doc => {
             cargarDatosGalerias();
         }
     } else {
-        db.collection('configuracion').doc('perfiles').set({ ema: configEma, juli: configJuli });
+        db.collection('configuracion').doc('perfiles').set({ ema: configEma, juli: configJuli }, { merge: true });
     }
 });
 
@@ -174,118 +175,14 @@ function iniciarSesion(id, data) {
                 showToast(`¡Tienes ${nuevas.join(', ')} nuevas de ${nombrePareja}! 👀`, 'ph-bell-ringing');
             }
             
-            // Un segundo después de las alertas, lanzamos la Recompensa Diaria
             setTimeout(() => {
-                procesarRecompensaDiaria();
+                window.procesarRecompensaDiaria(false);
             }, 1000);
 
         }, 1500);
 
     }, 3000);
 }
-
-// --- LÓGICA DE LA RECOMPENSA DIARIA Y RACHAS ---
-
-window.abrirRacha = function() {
-    // Cerramos el modal de configuración para que no se encimen
-    document.getElementById('settings-modal').classList.add('hidden');
-    window.procesarRecompensaDiaria(true); // Lo abrimos indicando que es MODO VISTA
-};
-
-window.procesarRecompensaDiaria = function(modoVista = false) {
-    const recompensas = [1, 2, 2, 3, 3, 5, 10]; 
-    
-    const getFechaLocalStr = (d) => {
-        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    };
-
-    const hoyObj = new Date();
-    const hoyStr = getFechaLocalStr(hoyObj);
-    
-    let racha = usuarioActualInfo.loginStreak || 0;
-    let ultimoLogin = usuarioActualInfo.lastLoginDate || '';
-
-    if (!modoVista) {
-        if (ultimoLogin === hoyStr) return; 
-
-        const ayerObj = new Date();
-        ayerObj.setDate(hoyObj.getDate() - 1);
-        const ayerStr = getFechaLocalStr(ayerObj);
-
-        if (ultimoLogin === ayerStr) {
-            racha++;
-            if (racha > 7) racha = 1; 
-        } else {
-            racha = 1;
-        }
-    } else {
-        if (racha === 0) racha = 1;
-    }
-
-    const yaCobroHoy = (ultimoLogin === hoyStr);
-    const grid = document.getElementById('reward-grid');
-    
-    if(grid) {
-        grid.innerHTML = '';
-        for(let i=1; i<=7; i++) {
-            const div = document.createElement('div');
-            div.className = 'reward-day';
-            
-            let icon = '<i class="ph ph-coins" style="font-size:1.4rem; color:#f39c12;"></i>';
-            
-            if (i < racha || (i === racha && yaCobroHoy)) {
-                div.classList.add('claimed');
-                icon = '<i class="ph ph-check-circle" style="font-size:1.4rem; color:#2ecc71;"></i>';
-            } else if (i === racha && !yaCobroHoy) {
-                div.classList.add('current');
-                icon = '<i class="ph ph-gift" style="font-size:1.5rem; color:var(--primary-hover);"></i>';
-            }
-            
-            div.innerHTML = `<span>Día ${i}</span>${icon}<span>+${recompensas[i-1]}</span>`;
-            grid.appendChild(div);
-        }
-        
-        const modal = document.getElementById('daily-reward-modal');
-        const btn = document.getElementById('claim-reward-btn');
-        modal.classList.remove('hidden');
-        
-        if (modoVista && yaCobroHoy) {
-            btn.innerHTML = '<i class="ph ph-check-square-offset"></i> Ya cobraste hoy (Cerrar)';
-            btn.style.backgroundColor = '#2ecc71'; 
-            btn.onclick = () => {
-                modal.classList.add('hidden');
-                btn.style.backgroundColor = ''; 
-            };
-        } else {
-            btn.innerHTML = '<i class="ph ph-hand-coins"></i> ¡Reclamar Monedas!';
-            btn.style.backgroundColor = '';
-            
-            btn.onclick = () => {
-                modal.classList.add('hidden');
-                
-                if (!yaCobroHoy) {
-                    const monedasGanadas = recompensas[racha - 1];
-                    const nuevasMonedas = (usuarioActualInfo.coins || 0) + monedasGanadas;
-                    
-                    usuarioActualInfo.coins = nuevasMonedas;
-                    usuarioActualInfo.loginStreak = racha;
-                    usuarioActualInfo.lastLoginDate = hoyStr;
-                    
-                    document.getElementById('settings-coins').textContent = nuevasMonedas;
-                    if(document.getElementById('surprises-coins-display')) {
-                        document.getElementById('surprises-coins-display').textContent = nuevasMonedas;
-                    }
-
-                    const updateObj = {};
-                    updateObj[usuarioActualId] = usuarioActualInfo;
-                    db.collection('configuracion').doc('perfiles').set(updateObj, { merge: true }).then(() => {
-                        showToast(`¡Racha de ${racha} días! Ganaste ${monedasGanadas} 🪙`, 'ph-fire');
-                    });
-                }
-            };
-        }
-    }
-};
 
 logoutBtn.addEventListener('click', () => {
     appContainer.classList.add('hidden');
@@ -343,13 +240,12 @@ if(profileBtn) {
         settingsSaveBtn.disabled = true;
 
         const updateObj = {};
+        // ESCUDO DE PROTECCIÓN: Mantiene monedas y racha seguras al cambiar nombre o foto
         updateObj[usuarioActualId] = {
-            id: usuarioActualId, user: newUser, pass: newPass,
-            name: usuarioActualInfo.name, avatar: newAvatarBase64,
-            coins: usuarioActualInfo.coins || 0,
-            lastNormalDate: usuarioActualInfo.lastNormalDate || '',
-            lastSecretDate: usuarioActualInfo.lastSecretDate || '',
-            lastSeen: usuarioActualInfo.lastSeen || { gallery: 0, secret: 0, surprises: 0, chat: 0 }
+            ...usuarioActualInfo,
+            user: newUser,
+            pass: newPass,
+            avatar: newAvatarBase64
         };
 
         db.collection('configuracion').doc('perfiles').set(updateObj, { merge: true }).then(() => {
@@ -405,16 +301,70 @@ function activarPestana(botonActivo, vistaActiva) {
     if (botonActivo === navChat) marcarVisto('chat');
 }
 
+// --- SISTEMA DE NOTIFICACIONES NATIVAS ---
+function solicitarPermisoNotificaciones() {
+    if (!("Notification" in window)) return;
+    if (Notification.permission !== "denied" && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+}
+
+function enviarNotificacionOS(titulo, mensaje) {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    
+    // Evitamos enviar la notificación si ya estás dentro de la app mirando la pantalla
+    if (document.visibilityState === 'visible') return;
+
+    const notificacion = new Notification(titulo, {
+        body: mensaje,
+        icon: 'icono.png', // Usa el logo de tu app
+        vibrate: [200, 100, 200]
+    });
+
+    notificacion.onclick = function() {
+        window.focus();
+        this.close();
+    };
+}
+
 // --- FIREBASE LISTENERS (CHAT, GALERIA, SORPRESAS) ---
 function inicializarListenersFirebase() {
+    
+    // Pedimos permiso para enviar notificaciones al entrar
+    solicitarPermisoNotificaciones();
+
     // 1. GALERIA
     db.collection('recuerdos').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+        
+        // RASTREADOR DE NOTIFICACIONES: Busca fotos recién subidas
+        snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+                const data = change.doc.data();
+                // Si el autor es tu pareja y la foto se subió hace menos de 5 segundos
+                if (data.authorId !== usuarioActualId && (Date.now() - data.timestamp) < 5000) {
+                    const titulo = data.isIntimate ? "¡Secreto nuevo! " : "¡Nuevo recuerdo! ";
+                    enviarNotificacionOS(titulo, "Han subido una foto al diario.");
+                }
+            }
+        });
+
         snapshotRecuerdosLocal = snapshot; 
         cargarDatosGalerias();
     });
 
     // 2. CHAT
     db.collection('mensajes').orderBy('timestamp', 'asc').onSnapshot(snapshot => {
+        
+        // RASTREADOR DE NOTIFICACIONES: Busca mensajes nuevos
+        snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+                const msg = change.doc.data();
+                if (msg.authorId !== usuarioActualId && (Date.now() - msg.timestamp) < 5000) {
+                    enviarNotificacionOS("Nueva nota ", msg.text);
+                }
+            }
+        });
+
         const chatBox = document.getElementById('chat-box');
         if(!chatBox) return;
         
@@ -465,13 +415,30 @@ function inicializarListenersFirebase() {
     db.collection('juego').doc('estadisticas').onSnapshot(doc => {
         const fechaHoy = new Date().toLocaleDateString('es-ES');
         if (!doc.exists || doc.data().fecha !== fechaHoy) {
-            db.collection('juego').doc('estadisticas').set({ fecha: fechaHoy, ema: 0, juli: 0 }); return;
+            db.collection('juego').doc('estadisticas').set({ fecha: fechaHoy, ema: 0, juli: 0 }); 
+            return;
         }
         actualizarPantallaJuego(doc.data());
     });
 
     // 4. TIENDA Y SORPRESAS
     db.collection('sorpresas').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+        
+        // RASTREADOR DE NOTIFICACIONES: Busca sorpresas y deudas
+        snapshot.docChanges().forEach(change => {
+            const sorpresa = change.doc.data();
+            
+            // Si crearon una sorpresa nueva
+            if (change.type === 'added' && sorpresa.creatorId !== usuarioActualId && (Date.now() - sorpresa.timestamp) < 5000) {
+                enviarNotificacionOS("¡Nueva sorpresa! ", "Tienes un nuevo regalo en la tienda.");
+            }
+            
+            // Si cobraron una sorpresa (y te toca cumplirla a ti)
+            if (change.type === 'modified' && sorpresa.status === 'redeemed' && sorpresa.redeemedBy !== usuarioActualId && (Date.now() - sorpresa.redeemedAt) < 5000) {
+                enviarNotificacionOS("¡Te cobraron una deuda! ", `Tu pareja reclamó: ${sorpresa.title}`);
+            }
+        });
+
         const feedBuy = document.getElementById('surprises-feed-buy');
         const feedCreated = document.getElementById('surprises-feed-created');
         const feedRedeemed = document.getElementById('surprises-feed-redeemed');
@@ -491,22 +458,22 @@ function inicializarListenersFirebase() {
             if (sorpresa.status === 'redeemed') {
                 if (sorpresa.redeemedBy === usuarioActualId) {
                     card.innerHTML = `
-                        <div class="store-item-icon" style="filter: grayscale(0.8);">🎟️</div>
+                        <div class="store-item-icon"><i class="ph ph-ticket" style="font-size: 2.5rem; color: #cbd5e1;"></i></div>
                         <div class="coupon-info">
-                            <h4 style="text-decoration: line-through; color: #95a5a6;">${sorpresa.title}</h4>
-                            <p style="margin:0; font-size: 0.8rem; color: #27ae60;">¡Lo reclamaste!</p>
+                            <h4 style="text-decoration: line-through; color: #94a3b8;">${sorpresa.title}</h4>
+                            <p style="margin:0; font-size: 0.8rem; color: var(--text-light);">En espera...</p>
                         </div>
                     `;
                 } else {
                     if (sorpresa.redeemedAt > latestSurpriseTime) latestSurpriseTime = sorpresa.redeemedAt;
                     card.innerHTML = `
-                        <div class="store-item-icon">🚨</div>
+                        <div class="store-item-icon"><i class="ph ph-heart-beat" style="font-size: 2.5rem; color: #ff4757;"></i></div>
                         <div class="coupon-info">
                             <h4>${sorpresa.title}</h4>
-                            <p style="margin:0; font-size: 0.8rem; color: #e74c3c; font-weight:bold;">¡${nombrePareja} lo cobró!</p>
+                            <p style="margin:0; font-size: 0.8rem; color: #ff4757; font-weight:600;">¡Para ${nombrePareja}!</p>
                         </div>
                         <div class="coupon-actions" style="width: 100%;">
-                            <button class="btn-buy" style="background: linear-gradient(to bottom, #2ecc71, #27ae60); box-shadow: 0 5px 0 #219a52, 0 6px 10px rgba(0,0,0,0.2); font-size: 0.85rem;" onclick="borrarSorpresa('${doc.id}')">Cumplido ✔️</button>
+                            <button class="btn-cumplido" onclick="borrarSorpresa('${doc.id}')"><i class="ph ph-check-circle"></i> Cumplir</button>
                         </div>
                     `;
                 }
@@ -518,7 +485,7 @@ function inicializarListenersFirebase() {
                 if (sorpresa.creatorId !== usuarioActualId) {
                     if (sorpresa.timestamp > latestSurpriseTime) latestSurpriseTime = sorpresa.timestamp;
                     card.innerHTML = `
-                        <div class="store-item-icon"></div>
+                        <div class="store-item-icon"><i class="ph ph-gift" style="font-size: 2.5rem; color: var(--primary-hover);"></i></div>
                         <div class="coupon-info">
                             <h4>${sorpresa.title}</h4>
                         </div>
@@ -531,10 +498,10 @@ function inicializarListenersFirebase() {
                     feedBuy.appendChild(card);
                 } else {
                     card.innerHTML = `
-                        <div class="store-item-icon" style="filter: grayscale(0.5);"></div>
+                        <div class="store-item-icon"><i class="ph ph-tag" style="font-size: 2.5rem; color: #cbd5e1;"></i></div>
                         <div class="coupon-info">
                             <h4>${sorpresa.title}</h4>
-                            <p style="margin:0; font-size: 0.85rem; color: #7f8c8d; font-weight: bold;">Vale: ${sorpresa.cost} 🪙</p>
+                            <p style="margin:0; font-size: 0.85rem; color: var(--text-light); font-weight: 500;">Valor: ${sorpresa.cost} 🪙</p>
                         </div>
                         <div class="coupon-actions" style="width: 100%;">
                             <button class="btn-delete-item" onclick="borrarSorpresa('${doc.id}')"><i class="ph ph-trash"></i> Quitar</button>
@@ -545,7 +512,7 @@ function inicializarListenersFirebase() {
             }
         });
 
-        if(feedBuy.children.length === 0) feedBuy.innerHTML = '<p style="text-align:center; color:var(--text-light); font-style:italic; margin-top:10px; grid-column: 1 / -1;">Aun sin recompensas</p>';
+        if(feedBuy.children.length === 0) feedBuy.innerHTML = '<p style="text-align:center; color:var(--text-light); font-style:italic; margin-top:10px; grid-column: 1 / -1;">Aún no te han dejado sorpresas. ¡Dile que cree una!</p>';
         if(feedCreated.children.length === 0) feedCreated.innerHTML = '<p style="text-align:center; color:var(--text-light); font-style:italic; margin-top:10px; grid-column: 1 / -1;">No has creado sorpresas para tu pareja.</p>';
         if(feedRedeemed.children.length === 0) feedRedeemed.innerHTML = '<p style="text-align:center; color:var(--text-light); font-style:italic; margin-top:10px; grid-column: 1 / -1;">No hay deudas pendientes.</p>';
 
@@ -605,7 +572,7 @@ function cargarDatosGalerias() {
         let textoLikes = "Dar amor";
         
         if (likes.length === 2) {
-            textoLikes = "¡A los dos les encanta! ❤️";
+            textoLikes = "¡A los dos les encanta! ";
         } else if (likes.length === 1) {
             textoLikes = (likes[0] === 'ema') ? `A ${configEma.user} le encanta` : `A ${configJuli.user} le encanta`;
         }
@@ -857,13 +824,12 @@ function toggleLike(id) {
     }
 }
 
-// --- CREAR, BORRAR Y DESPLEGAR SORPRESAS ---
+// --- CREAR Y BORRAR SORPRESAS ---
 const toggleSurpriseBtn = document.getElementById('toggle-create-surprise-btn');
 const surpriseForm = document.getElementById('create-surprise-form');
 const cancelSurpriseBtn = document.getElementById('cancel-surprise-btn');
 const createSurpriseBtn = document.getElementById('create-surprise-btn');
 
-// Lógica del botón Crear Sorpresa
 if(toggleSurpriseBtn) {
     toggleSurpriseBtn.addEventListener('click', () => {
         surpriseForm.classList.remove('hidden');
@@ -877,7 +843,6 @@ if(cancelSurpriseBtn) {
     });
 }
 
-// Lógica del botón Reclamados (Deudas)
 const toggleRedeemedBtn = document.getElementById('toggle-redeemed-btn');
 const redeemedContainer = document.getElementById('redeemed-container');
 
@@ -892,7 +857,6 @@ if(toggleRedeemedBtn && redeemedContainer) {
     });
 }
 
-// Lógica del botón Creadas por ti
 const toggleCreatedBtn = document.getElementById('toggle-created-btn');
 const createdContainer = document.getElementById('created-container');
 
@@ -907,7 +871,6 @@ if(toggleCreatedBtn && createdContainer) {
     });
 }
 
-// Guardar nueva sorpresa en la nube
 if(createSurpriseBtn) {
     createSurpriseBtn.addEventListener('click', () => {
         const desc = document.getElementById('surprise-desc').value.trim();
@@ -947,7 +910,7 @@ if(createSurpriseBtn) {
 
 window.canjearSorpresa = function(id, cost) {
     if (usuarioActualInfo.coins < cost) {
-        showToast(`Te faltan ${cost - (usuarioActualInfo.coins||0)} monedas `, 'ph-warning-circle');
+        showToast(`Te faltan ${cost - (usuarioActualInfo.coins||0)} monedas 😢`, 'ph-warning-circle');
         return;
     }
 
@@ -975,7 +938,7 @@ window.borrarSorpresa = function(id) {
     });
 };
 
-// --- CHAT Y MENSAJES (¡CORREGIDO Y CONECTADO!) ---
+// --- CHAT Y MENSAJES ---
 function borrarMensaje(idMensaje, authorId) {
     if (authorId !== usuarioActualId) {
         showToast("Solo puedes borrar tus propios mensajes", "ph-warning-circle");
@@ -1024,7 +987,7 @@ if (chatSendBtn) chatSendBtn.onclick = window.enviarMensaje;
 if (chatInput) {
     chatInput.onkeypress = function(e) {
         if (e.key === 'Enter') {
-            e.preventDefault(); // Evita el salto de línea en celulares
+            e.preventDefault(); 
             window.enviarMensaje();
         }
     };
@@ -1041,7 +1004,7 @@ function configurarBotonesJuego() {
         btnJuli.disabled = true; btnJuli.textContent = "Bloqueado ";
     } else {
         btnJuli.disabled = false; btnJuli.textContent = "Pulsar";
-        btnEma.disabled = true; btnEma.textContent = "Bloqueado 🔒";
+        btnEma.disabled = true; btnEma.textContent = "Bloqueado ";
     }
 }
 
@@ -1100,3 +1063,318 @@ if(imageLightbox) {
         if (e.target === imageLightbox) closeLightboxBtn.click(); 
     });
 }
+
+// --- LÓGICA DE LA RECOMPENSA DIARIA Y RACHAS ---
+window.abrirRacha = function() {
+    document.getElementById('settings-modal').classList.add('hidden');
+    window.procesarRecompensaDiaria(true); 
+};
+
+window.procesarRecompensaDiaria = function(modoVista = false) {
+    const recompensas = [1, 2, 2, 3, 3, 5, 10]; 
+    
+    const getFechaLocalStr = (d) => {
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    };
+
+    const hoyObj = new Date();
+    const hoyStr = getFechaLocalStr(hoyObj);
+    
+    let racha = usuarioActualInfo.loginStreak || 0;
+    let ultimoLogin = usuarioActualInfo.lastLoginDate || '';
+
+    if (!modoVista) {
+        if (ultimoLogin === hoyStr) return; 
+
+        const ayerObj = new Date();
+        ayerObj.setDate(hoyObj.getDate() - 1);
+        const ayerStr = getFechaLocalStr(ayerObj);
+
+        if (ultimoLogin === ayerStr) {
+            racha++;
+            if (racha > 7) racha = 1; 
+        } else {
+            racha = 1;
+        }
+    } else {
+        if (racha === 0) racha = 1;
+    }
+
+    const yaCobroHoy = (ultimoLogin === hoyStr);
+    const grid = document.getElementById('reward-grid');
+    
+    if(grid) {
+        grid.innerHTML = '';
+        for(let i=1; i<=7; i++) {
+            const div = document.createElement('div');
+            div.className = 'reward-day';
+            
+            let icon = '<i class="ph ph-coins" style="font-size:1.4rem; color:#f39c12;"></i>';
+            
+            if (i < racha || (i === racha && yaCobroHoy)) {
+                div.classList.add('claimed');
+                icon = '<i class="ph ph-check-circle" style="font-size:1.4rem; color:#2ecc71;"></i>';
+            } else if (i === racha && !yaCobroHoy) {
+                div.classList.add('current');
+                icon = '<i class="ph ph-gift" style="font-size:1.5rem; color:var(--primary-hover);"></i>';
+            }
+            
+            div.innerHTML = `<span>Día ${i}</span>${icon}<span>+${recompensas[i-1]}</span>`;
+            grid.appendChild(div);
+        }
+        
+        const modal = document.getElementById('daily-reward-modal');
+        const btn = document.getElementById('claim-reward-btn');
+        modal.classList.remove('hidden');
+        
+        if (modoVista && yaCobroHoy) {
+            btn.innerHTML = '<i class="ph ph-check-square-offset"></i> Ya cobraste hoy (Cerrar)';
+            btn.style.backgroundColor = '#2ecc71'; 
+            btn.onclick = () => {
+                modal.classList.add('hidden');
+                btn.style.backgroundColor = ''; 
+            };
+        } else {
+            btn.innerHTML = '<i class="ph ph-hand-coins"></i> ¡Reclamar Monedas!';
+            btn.style.backgroundColor = '';
+            
+            btn.onclick = () => {
+                modal.classList.add('hidden');
+                
+                if (!yaCobroHoy) {
+                    const monedasGanadas = recompensas[racha - 1];
+                    const nuevasMonedas = (usuarioActualInfo.coins || 0) + monedasGanadas;
+                    
+                    usuarioActualInfo.coins = nuevasMonedas;
+                    usuarioActualInfo.loginStreak = racha;
+                    usuarioActualInfo.lastLoginDate = hoyStr;
+                    
+                    document.getElementById('settings-coins').textContent = nuevasMonedas;
+                    if(document.getElementById('surprises-coins-display')) {
+                        document.getElementById('surprises-coins-display').textContent = nuevasMonedas;
+                    }
+
+                    const updateObj = {};
+                    updateObj[usuarioActualId] = usuarioActualInfo;
+                    db.collection('configuracion').doc('perfiles').set(updateObj, { merge: true }).then(() => {
+                        showToast(`¡Racha de ${racha} días! Ganaste ${monedasGanadas} 🪙`, 'ph-fire');
+                    });
+                }
+            };
+        }
+    }
+};
+
+// ==========================================
+// --- NUEVO: SISTEMA DE DIBUJOS Y COMENTARIOS ---
+// ==========================================
+const navDraw = document.getElementById('nav-draw');
+const viewDraw = document.getElementById('view-draw');
+
+if (navDraw && viewDraw) {
+    // Truco modular: ocultar la pestaña nueva si tocan las viejas
+    [document.getElementById('nav-add'), document.getElementById('nav-gallery'), document.getElementById('nav-surprises'), document.getElementById('nav-chat'), document.getElementById('nav-game'), document.getElementById('nav-intimate')].forEach(btn => {
+        if(btn) btn.addEventListener('click', () => {
+            viewDraw.classList.add('hidden');
+            navDraw.classList.remove('active');
+        });
+    });
+
+    // Abrir la pestaña de dibujo
+    navDraw.addEventListener('click', () => {
+        activarPestana(navDraw, viewDraw); // Cierra las demás
+        navDraw.classList.add('active');
+        viewDraw.classList.remove('hidden');
+        marcarVisto('draw');
+        
+        // Ajustar el lienzo al tamaño exacto de la pantalla del celular
+        const canvas = document.getElementById('drawing-canvas');
+        if(canvas && !canvas.classList.contains('ready')) {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            canvas.classList.add('ready');
+        }
+    });
+
+    // --- LÓGICA DEL TRAZO EN EL LIENZO ---
+    const canvas = document.getElementById('drawing-canvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+    let isDrawing = false;
+
+    if (canvas) {
+        const startDrawing = (e) => { isDrawing = true; draw(e); };
+        const stopDrawing = () => { isDrawing = false; ctx.beginPath(); };
+        const draw = (e) => {
+            if (!isDrawing) return;
+            e.preventDefault(); // Evita que la pantalla se mueva mientras dibujas
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const x = (clientX - rect.left) * (canvas.width / rect.width);
+            const y = (clientY - rect.top) * (canvas.height / rect.height);
+
+            ctx.lineWidth = document.getElementById('draw-size').value;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = document.getElementById('draw-color').value;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        };
+        
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+        canvas.addEventListener('touchstart', startDrawing, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', stopDrawing);
+        
+        // Botón Borrar
+        document.getElementById('clear-canvas-btn').addEventListener('click', () => {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        });
+
+        // Botón Enviar a la Base de Datos
+        document.getElementById('save-draw-btn').addEventListener('click', () => {
+            const title = document.getElementById('draw-title').value.trim();
+            const image64 = canvas.toDataURL('image/jpeg', 0.85);
+            const btn = document.getElementById('save-draw-btn');
+            
+            btn.disabled = true;
+            btn.innerHTML = 'Enviando... ⏳';
+            
+            db.collection('dibujos').add({
+                title: title,
+                image: image64,
+                authorId: usuarioActualId,
+                likes: [],
+                comentarios: [],
+                timestamp: Date.now()
+            }).then(() => {
+                document.getElementById('draw-title').value = '';
+                document.getElementById('clear-canvas-btn').click();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-paper-plane-right"></i> Enviar Obra de Arte';
+                showToast('¡Obra de arte enviada! 🎨', 'ph-palette');
+            });
+        });
+    }
+
+    // --- ESCUCHAR Y MOSTRAR LOS DIBUJOS (CON COMENTARIOS) ---
+    db.collection('dibujos').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+        const feed = document.getElementById('drawings-feed');
+        if(!feed) return;
+        feed.innerHTML = '';
+        
+        // RASTREADOR DE NOTIFICACIONES (DIBUJOS NUEVOS)
+        snapshot.docChanges().forEach(change => {
+            if (change.type === 'added' && change.doc.data().authorId !== usuarioActualId && (Date.now() - change.doc.data().timestamp) < 5000) {
+                if(typeof enviarNotificacionOS === "function") enviarNotificacionOS("¡Nuevo dibujo! 🎨", "Han creado una obra de arte para ti.");
+            }
+        });
+
+        let latestDrawTime = 0;
+
+        snapshot.forEach(doc => {
+            const dibujo = doc.data();
+            const id = doc.id;
+            
+            if (dibujo.authorId !== usuarioActualId && dibujo.timestamp > latestDrawTime) latestDrawTime = dibujo.timestamp;
+
+            let autorNombre = dibujo.authorId === 'juli' ? (typeof configJuli !== 'undefined' ? configJuli.user : 'Juli') : (typeof configEma !== 'undefined' ? configEma.user : 'Ema');
+            let autorImagen = dibujo.authorId === 'juli' ? (typeof configJuli !== 'undefined' ? configJuli.avatar : '') : (typeof configEma !== 'undefined' ? configEma.avatar : '');
+
+            let likes = dibujo.likes || [];
+            let haDadoLike = likes.includes(usuarioActualId);
+            let textoLikes = likes.length > 0 ? (likes.length === 2 ? "¡A los dos les encanta! ❤️" : `${likes.length} me encanta`) : "Dar amor";
+
+            const card = document.createElement('div');
+            card.className = 'memory-card'; 
+            
+            let comentariosHTML = (dibujo.comentarios || []).map(c => 
+                `<div style="margin-bottom: 5px;"><strong style="color: var(--primary-hover); font-size: 0.9rem;">${c.autor}:</strong> ${c.texto}</div>`
+            ).join('');
+
+            card.innerHTML = `
+                <div class="memory-image-container">
+                    <img src="${dibujo.image}" class="memory-image" onclick="abrirLightbox('${dibujo.image}')" style="background:#fff; border-bottom: 1px solid #eee;">
+                    ${dibujo.authorId === usuarioActualId ? `<button class="delete-btn" onclick="borrarDibujo('${id}')"><i class="ph ph-trash"></i></button>` : ''}
+                    <div class="author-bubble" title="Dibujado por ${autorNombre}"><img src="${autorImagen}"></div>
+                </div>
+                <div class="memory-content" style="padding: 20px;">
+                    <div class="memory-text" style="font-weight: 600; text-align: center; font-size: 1.15rem; color: var(--primary-hover);">${dibujo.title || 'Arte sin título'}</div>
+                    
+                    <div class="memory-actions" style="margin-top: 10px; padding-bottom: 10px;">
+                        <button class="like-btn ${haDadoLike ? 'liked' : ''}" onclick="toggleLikeDibujo('${id}')">
+                            <i class="ph ${haDadoLike ? 'ph-heart-fill' : 'ph-heart'}"></i>
+                            <span>${textoLikes}</span>
+                        </button>
+                    </div>
+                    
+                    <!-- SISTEMA DE COMENTARIOS -->
+                    <div style="margin-top: 10px; border-top: 1px dashed rgba(248, 187, 208, 0.4); padding-top: 15px;">
+                        <div style="max-height: 120px; overflow-y: auto; font-size: 0.85rem; margin-bottom: 10px; color: var(--text-dark);">
+                            ${comentariosHTML || '<span style="color: var(--text-light); font-style: italic;">Sin comentarios aún...</span>'}
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="coment-input-${id}" placeholder="Comenta este dibujo..." autocomplete="off" style="flex:1; padding: 10px 15px; font-size: 0.85rem; border-radius: 20px; border: 1px solid #f0f0f0;">
+                            <button onclick="comentarDibujo('${id}')" class="btn-primary" style="width: auto; padding: 10px 15px; border-radius: 50%;"><i class="ph ph-paper-plane-right" style="margin:0;"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            feed.appendChild(card);
+        });
+
+        if (feed.children.length === 0) feed.innerHTML = '<p style="text-align:center; color:var(--text-light); font-style:italic;">Aún no hay obras de arte. ¡Haz el primer dibujo!</p>';
+
+        // Control del puntito de notificación
+        const seen = usuarioActualInfo.lastSeen || {};
+        if (latestDrawTime > (seen.draw || 0) && (!viewDraw || viewDraw.classList.contains('hidden'))) {
+            const dot = document.getElementById('dot-draw');
+            if(dot) dot.classList.remove('hidden');
+        } else {
+            const dot = document.getElementById('dot-draw');
+            if(dot) dot.classList.add('hidden');
+        }
+    });
+
+    // Funciones globales para dibujar y comentar
+    window.toggleLikeDibujo = function(id) {
+        const ref = db.collection('dibujos').doc(id);
+        ref.get().then(doc => {
+            if(!doc.exists) return;
+            const likes = doc.data().likes || [];
+            if(likes.includes(usuarioActualId)) ref.update({ likes: firebase.firestore.FieldValue.arrayRemove(usuarioActualId) });
+            else ref.update({ likes: firebase.firestore.FieldValue.arrayUnion(usuarioActualId) });
+        });
+    };
+
+    window.comentarDibujo = function(id) {
+        const input = document.getElementById(`coment-input-${id}`);
+        const texto = input.value.trim();
+        if(!texto) return;
+
+        const ref = db.collection('dibujos').doc(id);
+        const nuevoComentario = { autor: usuarioActualInfo.user, texto: texto, timestamp: Date.now() };
+
+        ref.update({ comentarios: firebase.firestore.FieldValue.arrayUnion(nuevoComentario) }).then(() => {
+            input.value = '';
+            // Si el que comenta no es el que dibujó, enviamos notificación (si la función existe)
+            if(typeof enviarNotificacionOS === "function") enviarNotificacionOS("¡Nuevo comentario! 💬", `${usuarioActualInfo.user} comentó tu dibujo.`);
+        });
+    };
+
+    window.borrarDibujo = function(id) {
+        showConfirm("¿Borrar tu dibujo para siempre?", () => {
+            db.collection('dibujos').doc(id).delete().then(() => showToast("Dibujo eliminado", "ph-trash"));
+        });
+    };
+}
+
